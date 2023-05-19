@@ -29,22 +29,25 @@ CREATE TABLE Trenes(
     id_itinerario       NUMBER  (5,0)   CONSTRAINT  fk_trenes_itinerarios       REFERENCES  Itinerarios(id_itinerario)
 );
 
+DROP TABLE Tipo_tickets CASCADE CONSTRAINTS;
 CREATE TABLE Tipo_tickets(
     nombre_tipo                 VARCHAR (40)        CONSTRAINT  pk_tipo_tickets                 PRIMARY KEY,
-    multiplicador_precio        NUMBER  (2,0)       CONSTRAINT  nn_mult_precio_tipo_tickets     NOT NULL,
-                                                    CONSTRAINT  ck_mult_precio_tipo_tickets     CHECK(multiplicador_precio > 0)
+    multiplicador_precio        NUMBER  (2,1)       CONSTRAINT  nn_mult_precio_tipo_tickets     NOT NULL,
+                                                    CONSTRAINT  ck_mult_precio_tipo_tickets     CHECK(multiplicador_precio != 0)
 );
 
 CREATE TABLE Viajes(
     id_itinerario       NUMBER  (5,0),
-    estacion_salida     VARCHAR (40),
-    estacion_llegada    VARCHAR (40),
+    estacion_salida     NUMBER  (5,0),
+    estacion_llegada    NUMBER  (5,0),
     precio              NUMBER  (4,0)           CONSTRAINT  nn_precio_viajes        NOT NULL,
                                                 CONSTRAINT  ck_precio_viajes        CHECK   (precio > 0),
-    km                  NUMBER  (3,0)           CONSTRAINT  nn_km_viajes            NOT NULL,
+    km                  NUMBER  (4,0)           CONSTRAINT  nn_km_viajes            NOT NULL,
                                                 CONSTRAINT  ck_km_viajes            CHECK   (km > 0),
     CONSTRAINT          pk_viajes               PRIMARY KEY (id_itinerario,estacion_salida,estacion_llegada)
 );
+
+
 
 CREATE TABLE Tickets(
     id_ticket           NUMBER  (5,0),
@@ -56,7 +59,8 @@ CREATE TABLE Tickets(
     precio              NUMBER  (4,0)           CONSTRAINT  nn_precio_tickets       NOT NULL,
                                                 CONSTRAINT  ck_precio_tickets       CHECK   (precio > 0),
     fecha               DATE                    CONSTRAINT  nn_fecha_tickets        NOT NULL,
-    CONSTRAINT pk_tickets       PRIMARY KEY (id_ticket,id_itinerario,estacion_salida,estacion_llegada)
+    CONSTRAINT pk_tickets           PRIMARY KEY (id_ticket),
+    CONSTRAINT fk_tickets_viajes    FOREIGN KEY (id_itinerario,estacion_salida,estacion_llegada)    REFERENCES Viajes (id_itinerario,estacion_salida,estacion_llegada)
 );
 
 
