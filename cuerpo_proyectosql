@@ -1,0 +1,238 @@
+/*Se quiere saber todos los viajes realizados por clientes, para ello
+se necesita toda la info de la tabla Tickets*/
+SELECT *
+    FROM Tickets
+    ORDER BY dni_comprador ASC;
+    
+/*Se quiere saber cuánta personas distintas viajaron en una semana dada*/
+SELECT COUNT (DISTINCT dni_comprador)"Numero de Personas"
+    FROM    Tickets
+    WHERE   fecha BETWEEN '30/06/2023' AND '1/08/2023';
+    
+/*Se quiere saber que trenes hay para los itinerarzios directos (impares) y días pares*/
+
+SELECT t.matricula, t.modelo, t.id_itinerario
+    FROM        Trenes t
+    WHERE       MOD(t.id_itinerario, 2) = 1
+                AND
+                MOD(t.dias_funcionamiento, 2) = 0
+    ORDER BY    t.matricula ASC;
+    
+/*Se quiere saber cuántas personas viajaron más de una vez en un tren dado*/
+
+SELECT tic.dni_comprador, tic.fecha, tre.matricula, tre.modelo, iti.nombre, iti.descripcion
+    FROM        Tickets tic, Trenes tre, Itinerarios iti
+    WHERE       tic.id_itinerario = iti.id_itinerario
+                AND
+                iti.id_itinerario = tre.id_itinerario
+                AND 
+                tic.fecha BETWEEN '30/06/2023' AND '01/08/2023'
+                AND
+                tre.matricula LIKE 'TREN028';
+    
+/*Se ha detectado un error y parece ser que el precio de todos los viajes registrados
+son incorrectos. Se ha mandado a corregir este error actualizando esos registros con los
+precios establecidos para los viajes y la tarifa correspondiente a cada uno.*/
+
+UPDATE Tickets tic
+    SET tic.precio = ((SELECT vi.precio
+                        FROM    Viajes vi
+                        WHERE   tic.id_itinerario = vi.id_itinerario
+                                AND
+                                tic.estacion_salida = vi.estacion_salida
+                                AND
+                                tic.estacion_llegada = vi.estacion_llegada)
+                            
+                        * 
+                            
+                        (SELECT tip.multiplicador_precio
+                            FROM    Tipo_tickets tip
+                            WHERE   tic.nombre_tipo_ticket = tip.nombre_tipo));
+
+/*Ahora los registros están correctos*/
+
+
+/*Para tener una mejor administración, se le ha pedido al equipo informático un
+registro fácilmente accesible de todos los viajes efectuados en mayo*/
+
+
+CREATE OR REPLACE VIEW ViajesJunio as
+    (SELECT dni_comprador"DNI", id_itinerario, estacion_salida, estacion_llegada, fecha
+        FROM    Tickets
+        WHERE   TO_CHAR(fecha,'MM') LIKE '06');
+
+/*Desde la empresa, antes la subida del precio en diversas materias primas, se están
+replanteando la subida de los precios. Para ello se necesita saber la facturación de
+la empresa de los datos registrados en junio para estimaciones.*/
+
+SELECT SUM(precio)"Ingresos en Junio"
+    FROM    Tickets
+    WHERE   TO_CHAR(fecha,'MM') LIKE '06';
+    
+/*Para el estudio de la subida del precio mencionada, se está barajando la posibilidad de
+quitar las tarifas que aplican un descuento en los clientes (tipo_tickets) o incrementar
+el precio de los viajes un 10%. Se le ha pedido al equipo informático de la empresa
+que con los datos obtenidos en junio se haga un estudio*/
+
+SELECT SUM(precio)*1.1 "Ingresos Junio +10%"
+    FROM    Tickets
+    WHERE   TO_CHAR(fecha,'MM') LIKE '06';
+
+SELECT SUM(via.precio)"Ingresos sin descuentos"
+    FROM    Tickets tic, Viajes via
+    WHERE   tic.id_itinerario = via.id_itinerario
+            AND
+            tic.estacion_salida = via.estacion_salida
+            AND
+            tic.estacion_llegada = via.estacion_llegada
+            AND
+            TO_CHAR(tic.fecha,'MM') LIKE '06';
+            
+COMMIT;
+            
+/*Se ha llegado a la conclusión de que la erradicación de las tarifas con descuento,
+a pesar de dar un beneficio algo superior, sería muy mal aceptado por los clientes.
+Se ha optado por la solución de incrementar los precios de los viajes un 10% de su
+valor actual.
+Se le ha pedido al equipo informático que se lleve a cabo esta actualización*/
+
+
+
+UPDATE Viajes via
+    SET via.precio = (SELECT precio * 1.1
+                    FROM    Viajes via2
+                    WHERE   via.id_itinerario = via2.id_itinerario
+                            AND
+                            via.estacion_salida = via2.estacion_salida
+                            AND
+                            via.estacion_llegada = via2.estacion_llegada);
+
+/*Para comprobar que se han establecido los precios cómo debían hacemos esta prueba*/
+
+SELECT SUM(precio) "Ingresos Junio con subida", SUM(precio)*0.9 "Ingresos Junio sin subida"
+    FROM    Tickets
+    WHERE   TO_CHAR(fecha,'MM') LIKE '06';
+
+COMMIT;
+
+/*También para ahorrar costes, se quiere despachar personal y trenes que "sobran"
+Se sabe que en algunos itinerarios hay más de dos trenes y conductores, que es lo establecido.
+La empresa ha decidido que puede suplir todos sus viajes con 2 conductores y 2 trenes por itinerario
+Hallar los excedentes y sacarlos de la bdd.*/
+
+SELECT tre1.matricula, tre1.id_itinerario
+    FROM Trenes tre1
+    WHERE (SELECT COUNT(tre2.matricula)
+            FROM    Trenes tre2
+            WHERE   tre1.id_itinerario = tre2.id_itinerario
+            GROUP BY    tre2.id_itinerario) > 2
+    ORDER BY tre1.id_itinerario ASC;
+
+SELECT COUNT(*)"Cantidad de conductores", id_itinerario"Itinerario"
+    FROM        Conductores
+    GROUP BY    id_itinerario
+    HAVING      COUNT(*) > 2
+    ORDER BY    id_itinerario ASC;
+    
+            
+DELETE FROM Trenes
+WHERE matricula IN (
+    SELECT matricula
+    FROM (
+        SELECT tre2.matricula,
+               ROW_NUMBER() OVER (ORDER BY tre2.id_itinerario ASC) AS rn
+        FROM Trenes tre2
+        WHERE (
+            SELECT COUNT(tre3.matricula)
+            FROM Trenes tre3
+            WHERE tre2.id_itinerario = tre3.id_itinerario
+            GROUP BY tre3.id_itinerario
+        ) > 2
+    ) subquery
+    WHERE rn IN (3, 6, 9)
+);
+
+/*Hacemos algo parecido pero con los conductores*/
+DELETE
+    FROM Conductores
+    WHERE ROWID IN (
+            SELECT filaid
+                FROM (
+                    SELECT ROWID AS filaid, ROW_NUMBER() 
+                        OVER (  PARTITION BY id_itinerario
+                                ORDER BY ROWID)
+                        AS numerofila
+                        FROM Conductores
+            ) WHERE numerofila = 1
+);
+                            
+
+/*Para comprobar que ya no están estos datos se vuelve a ejecutar el mismo select
+que hicimos para hallarlos y ya vemos que no devuelven nada*/
+SELECT tre1.matricula, tre1.id_itinerario
+    FROM Trenes tre1
+    WHERE (SELECT COUNT(tre2.matricula)
+            FROM    Trenes tre2
+            WHERE   tre1.id_itinerario = tre2.id_itinerario
+            GROUP BY    tre2.id_itinerario) > 2
+    ORDER BY tre1.id_itinerario ASC;
+
+SELECT COUNT(*)"Cantidad de conductores", id_itinerario"Itinerario"
+    FROM        Conductores
+    GROUP BY    id_itinerario
+    HAVING      COUNT(*) > 2
+    ORDER BY    id_itinerario ASC;
+
+/*Se quiere recopilar informacion sobre los viajes realizados con una distancia
+mayor a 300 km. En mi proyecto veo dificilmente hacer inserts ya que necesito
+He considerado esto como un insert ya que por así decirlo "se le están insertando
+tuplas a una tabla" y no se me ocurría nada*/
+
+CREATE OR REPLACE VIEW TicketsMayores300km
+    AS  SELECT tic.dni_comprador, tic.id_ticket, via.km
+            FROM    Tickets tic, Viajes via
+            WHERE   tic.id_itinerario = via.id_itinerario
+                    AND
+                    tic.estacion_salida = via.estacion_salida
+                    AND
+                    tic.estacion_llegada = via.estacion_llegada
+                    AND
+                    via.km > 299;
+
+/*El problema que tengo es que establecí mi id ticket como si fuera un "autoincrement"
+(Aunque eso en Oracle no existe como tal sin usar una Sequence de forma procedural) y ahora
+me he pillao los dedos para hacer inserciones ya que no tengo forma de incrementar los valores
+de id_ticket en cada inserción.
+He intentado hacer una versión parecida, aunque da error obviamente pero no sé cómo hacer para
+solucionarlo*/
+/*
+INSERT INTO Tickets (id_ticket, id_itinerario, estacion_salida, estacion_llegada, nombre_tipo_ticket,dni_comprador, precio, fecha)
+    SELECT (SELECT MAX(id_ticket)+1 FROM Tickets), id_itinerario, estacion_salida, estacion_llegada, nombre_tipo_ticket,dni_comprador, precio, '06/07/2023'
+        FROM Tickets
+        WHERE fecha = '04/06/2023';
+*/
+
+
+/*He creado esta vista vacía que tendrá los viajes de más de 100 euros de precio
+para poder hacer luego inserts sobre ella. No se me ocurre cómo hacerlos sobre mis
+tablas con las restriccions de clave que tengo establecidas*/
+CREATE OR REPLACE VIEW ViajesMayores100Euros
+    AS  SELECT id_itinerario, estacion_salida, estacion_llegada, precio
+            FROM    Viajes
+            WHERE   id_itinerario = 20;
+
+/*Se quiere tener de manera accesible los viajes establecidos con un precio mayor a 100 euros*/
+INSERT INTO ViajesMayores100Euros (id_itinerario, estacion_salida, estacion_llegada, precio)
+    SELECT id_itinerario, estacion_salida, estacion_llegada, precio
+        FROM Viajes
+        WHERE precio > 99;
+
+
+
+                            
+            
+    
+
+
+
+                            

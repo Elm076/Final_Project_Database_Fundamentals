@@ -26,7 +26,11 @@ CREATE TABLE Trenes(
     modelo              VARCHAR (20)    CONSTRAINT  nn_modelo_trenes            NOT NULL,
     marca               VARCHAR (20)    CONSTRAINT  nn_marca_trenes             NOT NULL,
     anio_fabricacion    DATE,
-    id_itinerario       NUMBER  (5,0)   CONSTRAINT  fk_trenes_itinerarios       REFERENCES  Itinerarios(id_itinerario)
+    id_itinerario       NUMBER  (5,0)   CONSTRAINT  fk_trenes_itinerarios       REFERENCES  Itinerarios(id_itinerario),
+    dias_funcionamiento NUMBER  (1,0)   CONSTRAINT  nn_dias_trenes              NOT NULL
+                                        CONSTRAINT  ck_dias_trenes              CHECK   (dias_funcionamiento = 0
+                                                                                        OR 
+                                                                                        dias_funcionamiento = 1)
 );
 
 DROP TABLE Tipo_tickets CASCADE CONSTRAINTS;
