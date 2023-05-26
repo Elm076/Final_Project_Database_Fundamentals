@@ -1,5 +1,6 @@
 /*Se quiere saber todos los viajes realizados por clientes, para ello
 se necesita toda la info de la tabla Tickets*/
+
 SELECT *
     FROM Tickets
     ORDER BY dni_comprador ASC;
@@ -95,8 +96,6 @@ a pesar de dar un beneficio algo superior, sería muy mal aceptado por los client
 Se ha optado por la solución de incrementar los precios de los viajes un 10% de su
 valor actual.
 Se le ha pedido al equipo informático que se lleve a cabo esta actualización*/
-
-
 
 UPDATE Viajes via
     SET via.precio = (SELECT precio * 1.1
