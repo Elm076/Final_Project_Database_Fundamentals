@@ -1,17 +1,23 @@
 /*Se quiere saber todos los viajes realizados por clientes, para ello
 se necesita toda la info de la tabla Tickets*/
-
 SELECT *
     FROM Tickets
     ORDER BY dni_comprador ASC;
+    
+/*Se quiere saber cual es el porcentaje de clientes que viajaron con algún
+tipo de descuento (Hay 100 datos en la tabla)*/
+SELECT COUNT(Tickets.id_ticket)*(100/100)"Pocentaje Viajes Descuento"
+    FROM    Tickets, Tipo_tickets
+    WHERE   Tickets.nombre_tipo_ticket NOT LIKE 'Corriente'
+            AND
+            Tickets.nombre_tipo_ticket = Tipo_tickets.nombre_tipo;
     
 /*Se quiere saber cuánta personas distintas viajaron en una semana dada*/
 SELECT COUNT (DISTINCT dni_comprador)"Numero de Personas"
     FROM    Tickets
     WHERE   fecha BETWEEN '30/06/2023' AND '1/08/2023';
-    
-/*Se quiere saber que trenes hay para los itinerarzios directos (impares) y días pares*/
 
+/*Se quiere saber que trenes hay para los itinerarzios directos (impares) y días pares*/
 SELECT t.matricula, t.modelo, t.id_itinerario
     FROM        Trenes t
     WHERE       MOD(t.id_itinerario, 2) = 1
@@ -19,7 +25,9 @@ SELECT t.matricula, t.modelo, t.id_itinerario
                 MOD(t.dias_funcionamiento, 2) = 0
     ORDER BY    t.matricula ASC;
     
-/*Se quiere saber cuántas personas viajaron más de una vez en un tren dado*/
+/*Se quiere saber cuántas personas viajaron más de una vez en un tren dado,
+ya que hubo un problema con el tren y quizás hayá que remunerar a los clientes por
+el incidente*/
 
 SELECT tic.dni_comprador, tic.fecha, tre.matricula, tre.modelo, iti.nombre, iti.descripcion
     FROM        Tickets tic, Trenes tre, Itinerarios iti
@@ -29,7 +37,7 @@ SELECT tic.dni_comprador, tic.fecha, tre.matricula, tre.modelo, iti.nombre, iti.
                 AND 
                 tic.fecha BETWEEN '30/06/2023' AND '01/08/2023'
                 AND
-                tre.matricula LIKE 'TREN028';
+                tre.matricula LIKE 'TREN031';
     
 /*Se ha detectado un error y parece ser que el precio de todos los viajes registrados
 son incorrectos. Se ha mandado a corregir este error actualizando esos registros con los
@@ -148,7 +156,7 @@ WHERE matricula IN (
             GROUP BY tre3.id_itinerario
         ) > 2
     ) subquery
-    WHERE rn IN (3, 6, 9)
+    WHERE MOD(rn, 3) = 0
 );
 
 /*Hacemos algo parecido pero con los conductores*/
@@ -212,19 +220,16 @@ INSERT INTO Tickets (id_ticket, id_itinerario, estacion_salida, estacion_llegada
 */
 
 
-/*He creado esta vista vacía que tendrá los viajes de más de 100 euros de precio
-para poder hacer luego inserts sobre ella. No se me ocurre cómo hacerlos sobre mis
-tablas con las restriccions de clave que tengo establecidas*/
+/*Se quiere tener de manera accesible los viajes establecidos con un precio mayor a 100 euros.
+No se me ocurre cómo hacerlos sobre mis
+tablas con las restriccions de clave que tengo establecidas, así que voy a "simular"
+que estoy introduciendo datos haciendo una vista. Realmente la sintaxis es idéntica
+aunque aquí no puedo sustituir ningún alias por un valor imperativo*/
 CREATE OR REPLACE VIEW ViajesMayores100Euros
     AS  SELECT id_itinerario, estacion_salida, estacion_llegada, precio
             FROM    Viajes
-            WHERE   id_itinerario = 20;
+            WHERE   precio > 99;
 
-/*Se quiere tener de manera accesible los viajes establecidos con un precio mayor a 100 euros*/
-INSERT INTO ViajesMayores100Euros (id_itinerario, estacion_salida, estacion_llegada, precio)
-    SELECT id_itinerario, estacion_salida, estacion_llegada, precio
-        FROM Viajes
-        WHERE precio > 99;
 
 
 
